@@ -59,6 +59,7 @@ All2AllBackend = Literal[
     "flashinfer_nvlink_one_sided",
     "passthrough",
 ]
+NcclEPActivationFormat = Literal["standard", "batched"]
 
 
 @config
@@ -233,6 +234,13 @@ class ParallelConfig:
     - "passthrough": No all2all at all: the MoE backend dispatches and combines
       itself (e.g. the FlashInfer MoE-EP megakernels). Bound automatically for
       such MoE backends; not selectable from the CLI."""
+
+    nccl_ep_activation_format: NcclEPActivationFormat = "standard"
+    """Activation format used by the NCCL EP backend.
+
+    - "standard": Use the standard contiguous expert format
+    - "batched": Use the batched experts format
+    """
 
     max_parallel_loading_workers: int | None = Field(default=None, ge=1)
     """Maximum number of parallel loading workers when loading model
