@@ -63,10 +63,10 @@ def nccl_ep_module(monkeypatch: pytest.MonkeyPatch):
         "HandleConfig",
     ):
         setattr(nccl_ep, name, _Binding)
-    nccl_ep.Group = _Group
-    nccl_ep.Layout = SimpleNamespace(FLAT=0)
-    nccl.core = nccl_core
-    nccl.ep = nccl_ep
+    for name, value in {"Group": _Group, "Layout": SimpleNamespace(FLAT=0)}.items():
+        setattr(nccl_ep, name, value)
+    for name, value in {"core": nccl_core, "ep": nccl_ep}.items():
+        setattr(nccl, name, value)
 
     monkeypatch.setitem(sys.modules, "nccl", nccl)
     monkeypatch.setitem(sys.modules, "nccl.core", nccl_core)

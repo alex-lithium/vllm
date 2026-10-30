@@ -50,8 +50,7 @@ def _get_cuda_stream():
 
 
 class NcclEPStandardPrepareAndFinalize(mk.FusedMoEPrepareAndFinalizeModular):
-    """
-    Prepare/Finalize using NCCL EP with FLAT layout
+    """Prepare/Finalize using NCCL EP with FLAT layout
     (Standard activation format).
     """
 
@@ -233,11 +232,7 @@ class NcclEPStandardPrepareAndFinalize(mk.FusedMoEPrepareAndFinalizeModular):
             expert_num_tokens_list, device=expert_x.device
         )
 
-        if (
-            expert_x_scale is None
-            and not defer_input_quant
-            and expert_x.numel() != 0
-        ):
+        if expert_x_scale is None and not defer_input_quant and expert_x.numel() != 0:
             expert_x, expert_x_scale = moe_kernel_quantize_input(
                 expert_x,
                 a1_scale,

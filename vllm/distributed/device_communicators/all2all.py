@@ -1198,8 +1198,7 @@ class MoonEPAll2AllManager(All2AllManagerBase):
 
 
 class NcclEPAll2AllManager(All2AllManagerBase):
-    """
-    All2All communication based on NCCL EP (Expert Parallelism) kernels.
+    """All2All communication based on NCCL EP (Expert Parallelism) kernels.
     Supports both batched (expert-major) and standard (flat) modes
     via a single backend.
     """
@@ -1289,9 +1288,7 @@ class NcclEPAll2AllManager(All2AllManagerBase):
                     max_token_bytes,
                 )
                 try:
-                    self._ep_groups[key] = nccl_ep.Group.create(
-                        self.nccl_comm, config
-                    )
+                    self._ep_groups[key] = nccl_ep.Group.create(self.nccl_comm, config)
                 except Exception:
                     logger.exception(
                         "NCCL EP group creation failed: rank=%d, "

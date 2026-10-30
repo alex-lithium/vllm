@@ -345,18 +345,14 @@ def maybe_make_prepare_finalize(
     elif moe.use_nccl_ep_kernels:
         if moe.moe_parallel_config.use_batched_activation_format:
             assert quant_config is not None
-            global_to_physical = physical_to_global = (
-                local_expert_global_ids
-            ) = None
+            global_to_physical = physical_to_global = local_expert_global_ids = None
             if routing_tables is not None:
                 (
                     global_to_physical,
                     physical_to_global,
                     local_expert_global_ids,
                 ) = routing_tables
-            num_local_experts = (
-                moe.num_experts // all2all_manager.world_size
-            )
+            num_local_experts = moe.num_experts // all2all_manager.world_size
             all_to_all_args = dict(
                 algorithm="batched",
                 num_experts=moe.num_experts,
