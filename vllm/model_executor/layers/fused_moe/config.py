@@ -1028,8 +1028,8 @@ class FusedMoEParallelConfig:
 
     use_ep: bool  # whether to use EP or not
     all2all_backend: str  # all2all backend for MoE communication
-    nccl_ep_activation_format: str
     enable_eplb: bool  # whether to enable expert load balancing
+    nccl_ep_activation_format: str = "standard"
 
     @property
     def is_sequence_parallel(self) -> bool:
