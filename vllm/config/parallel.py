@@ -895,10 +895,12 @@ class ParallelConfig:
     @property
     def use_batched_dp_moe(self) -> bool:
         return (
-            self.all2all_backend
-            in (
-                "deepep_low_latency",
-                "nixl_ep",
+            (
+                self.all2all_backend in ("deepep_low_latency", "nixl_ep")
+                or (
+                    self.all2all_backend == "nccl_ep"
+                    and self.nccl_ep_activation_format == "batched"
+                )
             )
             and self.enable_expert_parallel
             and self.data_parallel_size > 1

@@ -7,12 +7,14 @@ by overlapping computation of two batches. This test validates that DBO works
 correctly with the DeepSeek-V2-Lite model using GSM8K evaluation.
 """
 
+from concurrent.futures import ThreadPoolExecutor
+
 import pytest
 import torch
 
 from tests.utils import RemoteOpenAIServer
 from vllm.platforms import current_platform
-from vllm.utils.import_utils import has_deep_ep
+from vllm.utils.import_utils import has_deep_ep, has_nccl_ep
 
 # Detect Blackwell / B200 (compute capability 10.x)
 try:
@@ -45,6 +47,61 @@ DEEPEP_BACKENDS = [
     "deepep_low_latency",
     "deepep_high_throughput",
 ]
+
+
+@pytest.mark.skipif(
+    not current_platform.is_cuda() or not has_nccl_ep(),
+    reason="Requires NCCL-EP on CUDA",
+)
+@pytest.mark.parametrize(
+    ("activation_format", "enforce_eager"),
+    [("standard", True), ("batched", True), ("batched", False)],
+)
+def test_nccl_ep_dbo_serving(activation_format, enforce_eager, num_gpus_available):
+    """Default token budgets and DBO must work through the real serving path."""
+    if num_gpus_available < DP_SIZE:
+        pytest.skip(f"Need at least {DP_SIZE} GPUs")
+    model = "Qwen/Qwen3-30B-A3B"
+    server_args = [
+        "--data-parallel-size",
+        str(DP_SIZE),
+        "--enable-expert-parallel",
+        "--all2all-backend",
+        "nccl_ep",
+        "--nccl-ep-activation-format",
+        activation_format,
+        "--enable-dbo",
+        "--dbo-decode-token-threshold",
+        "2",
+        "--dbo-prefill-token-threshold",
+        "2",
+        "--max-num-seqs",
+        "64",
+        "--max-model-len",
+        "4096",
+        "--no-enable-prefix-caching",
+    ]
+    if enforce_eager:
+        server_args.append("--enforce-eager")
+    with (
+        RemoteOpenAIServer(model, server_args, max_wait_seconds=1200) as server,
+        server.get_client() as client,
+    ):
+
+        def complete(_):
+            return client.completions.create(
+                model=model,
+                prompt="The capital of France is",
+                max_tokens=16,
+                temperature=0,
+            )
+
+        with ThreadPoolExecutor(max_workers=32) as executor:
+            responses = list(executor.map(complete, range(32)))
+        for response in responses:
+            assert response.choices[0].text.lstrip().startswith("Paris")
+            assert response.usage is not None
+            assert response.usage.completion_tokens > 0
 
 
 @pytest.mark.skipif(not has_deep_ep(), reason="These tests require deep_ep to run")

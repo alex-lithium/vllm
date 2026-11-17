@@ -28,6 +28,11 @@ and PyTorch's compiled NCCL version alone do not identify it.
 
 Select `--all2all-backend nccl_ep` and
 `--nccl-ep-activation-format standard` (HT/FLAT) or `batched` (LL/EXPERT_MAJOR).
+With DP+EP, `batched` defaults to `--max-num-batched-tokens 256`, matching
+the existing batched DP backends and limiting its expert-major receive buffers.
+An explicit `--max-num-batched-tokens` overrides this default; larger values
+increase the receive-buffer allocation. `standard` keeps the usual scheduler
+default. On CUDA, both formats accept `--enable-dbo` for dual batch overlap.
 Block-FP8 expert configurations dispatch FP8 activations and FP32 block scales
 using NCCL-EP's [`FWD` quantization recipe](https://github.com/NVIDIA/nccl-extensions/blob/e57f0dad43dc1ca5bf96f09bf4075afc2eae6599/nccl_ep/docs/documentation/quantization.md).
 Physical scale rows are padded to

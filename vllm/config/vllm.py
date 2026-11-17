@@ -2240,6 +2240,8 @@ class VllmConfig:
                     "deepep_high_throughput",
                     "nixl_ep",
                 ]
+                if current_platform.is_cuda():
+                    supported_backends.append("nccl_ep")
             assert a2a_backend in supported_backends, (
                 "Microbatching currently only supports the "
                 f"{', '.join(supported_backends)} all2all backends on this "

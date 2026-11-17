@@ -15,6 +15,7 @@ from vllm.config import (
     CacheConfig,
     CompilationConfig,
     ModelConfig,
+    SchedulerConfig,
     config,
 )
 from vllm.engine.arg_utils import (
@@ -30,6 +31,8 @@ from vllm.engine.arg_utils import (
     optional_type,
     parse_type,
 )
+from vllm.platforms import current_platform
+from vllm.usage.usage_lib import UsageContext
 from vllm.utils.argparse_utils import FlexibleArgumentParser
 
 
@@ -407,6 +410,55 @@ def test_nccl_ep_activation_format_cli_arg(activation_format):
     args = parser.parse_args(["--nccl-ep-activation-format", activation_format])
 
     assert args.nccl_ep_activation_format == activation_format
+
+
+@pytest.mark.skipif(
+    not current_platform.is_cuda(), reason="NCCL-EP serving requires CUDA"
+)
+@pytest.mark.parametrize(
+    ("activation_format", "max_num_batched_tokens"),
+    [("standard", None), ("batched", None), ("batched", 1024)],
+)
+def test_nccl_ep_serving_token_budget(activation_format, max_num_batched_tokens):
+    """Batched serving uses its small default while preserving explicit budgets."""
+    engine_args = EngineArgs(
+        model="Qwen/Qwen3-30B-A3B",
+        data_parallel_size=2,
+        enable_expert_parallel=True,
+        all2all_backend="nccl_ep",
+        nccl_ep_activation_format=activation_format,
+        max_num_batched_tokens=max_num_batched_tokens,
+    )
+    engine_config = engine_args.create_engine_config(
+        usage_context=UsageContext.OPENAI_API_SERVER
+    )
+    if max_num_batched_tokens is not None:
+        expected = max_num_batched_tokens
+    elif activation_format == "batched":
+        expected = SchedulerConfig.DEFAULT_MAX_NUM_BATCHED_TOKENS_FOR_BATCHED_DP
+    else:
+        defaults, _ = EngineArgs.get_batch_defaults(world_size=1)
+        expected = defaults[UsageContext.OPENAI_API_SERVER]
+    assert engine_config.scheduler_config.max_num_batched_tokens == expected
+
+
+@pytest.mark.skipif(
+    not current_platform.is_cuda(), reason="NCCL-EP serving requires CUDA"
+)
+@pytest.mark.parametrize("activation_format", ["standard", "batched"])
+def test_nccl_ep_dbo_serving_config(activation_format):
+    """The server configuration must admit both NCCL-EP DBO layouts on CUDA."""
+    engine_args = EngineArgs(
+        model="Qwen/Qwen3-30B-A3B",
+        data_parallel_size=2,
+        enable_expert_parallel=True,
+        all2all_backend="nccl_ep",
+        nccl_ep_activation_format=activation_format,
+        enable_dbo=True,
+    )
+    engine_config = engine_args.create_engine_config()
+    assert engine_config.parallel_config.enable_dbo
+    assert engine_config.parallel_config.num_ubatches == 2
 
 
 @pytest.mark.parametrize(
